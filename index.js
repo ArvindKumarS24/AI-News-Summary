@@ -17,7 +17,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 5️⃣ Health check
+// 5️⃣ Health check (Render needs this)
 app.get("/", (req, res) => {
   res.send("🚀 AI News Backend is running");
 });
@@ -26,20 +26,15 @@ app.get("/", (req, res) => {
 app.use("/news", newsRoutes);
 
 /* ============================================================
-   7️⃣ AI SUMMARIZATION — SINGLE, CLEAN, RELIABLE ROUTE
+   7️⃣ AI ARTICLE SUMMARY ROUTE
 ============================================================ */
 app.post("/summarize-article", (req, res) => {
-  console.log("🔥 NEW SUMMARY ROUTE HIT");
-
-  // ✅ FIX: READ BODY PROPERLY
   const { title, description, content } = req.body;
 
   const cleanTitle = title || "News Update";
 
-  // ✅ Pick best available text
   let text = "";
-
-  if (content && typeof content === "string" && content.length > 80) {
+  if (content && content.length > 80) {
     text = content.replace(/\[\+\d+ chars\]/g, "");
   } else if (description && description.length > 40) {
     text = description;
@@ -47,7 +42,6 @@ app.post("/summarize-article", (req, res) => {
     text = cleanTitle;
   }
 
-  // ✅ Convert article into 2–4 simple sentences
   const sentences = text
     .replace(/\s+/g, " ")
     .split(".")
@@ -55,7 +49,6 @@ app.post("/summarize-article", (req, res) => {
     .filter(s => s.length > 20)
     .slice(0, 3);
 
-  // ✅ FINAL SUMMARY — ALWAYS DIFFERENT
   const summary = `
 🧠 ${cleanTitle}
 
@@ -65,10 +58,8 @@ ${sentences.join(". ")}.
   res.json({ summary });
 });
 
-
-
 /* ============================================================
-   8️⃣ DAILY TELEGRAM NEWS DIGEST (CRON JOB)
+   8️⃣ DAILY TELEGRAM NEWS DIGEST (CRON)
 ============================================================ */
 cron.schedule("0 9 * * *", async () => {
   console.log("⏰ Running daily Telegram news digest...");
@@ -99,58 +90,38 @@ cron.schedule("0 9 * * *", async () => {
         messages: [
           {
             role: "user",
-            content: `
-Summarize these top news headlines in a friendly way.
-Use emojis.
-5–6 simple lines.
-End with why it matters.
-
-${combinedNews}
-            `,
+            content: `Summarize these headlines using emojis and explain why it matters:\n\n${combinedNews}`,
           },
         ],
         temperature: 0.5,
         max_tokens: 250,
       },
       {
-       headers: {
-  Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-  "Content-Type": "application/json",
-  "HTTP-Referer": "http://localhost:5173",
-  "X-Title": "AI News Summarizer",
-}
-
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
       }
     );
 
     const summary = aiResponse.data.choices[0].message.content;
 
-    const telegramURL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-
-    await axios.post(telegramURL, {
-      chat_id: process.env.TELEGRAM_CHAT_ID,
-      text: `🗞️ Daily AI News Digest\n\n${summary}`,
-    });
+    await axios.post(
+      `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        chat_id: process.env.TELEGRAM_CHAT_ID,
+        text: `🗞️ Daily AI News Digest\n\n${summary}`,
+      }
+    );
 
     console.log("✅ Daily news sent to Telegram");
   } catch (error) {
-  console.error("❌ OPENROUTER FAILED");
-  console.error(error.response?.data || error.message);
-
-  return res.json({
-    summary: `🧠 ${cleanTitle}
-
-${cleanDesc || "This article discusses a recent development. Key details are limited, but the topic remains relevant."}
-
-(This summary is generated from available information.)`
-  });
-}
-
+    console.error("❌ Cron job failed:", error.message);
   }
-);
+});
 
-// 9️⃣ START SERVER — ALWAYS LAST
-const PORT = 5000;
+// 9️⃣ START SERVER (Render-safe)
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Backend running on http://localhost:${PORT}`);
+  console.log(`🚀 Backend running on port ${PORT}`);
 });
