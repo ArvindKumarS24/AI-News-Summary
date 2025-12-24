@@ -1,0 +1,30 @@
+.navbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 14px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 20px;
+  color: #1a1a1a;
+}
+
+.nav-tabs button {
+  background: none;
+  border: none;
+  margin-left: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #555;
+  padding-bottom: 6px;
+}
+
+.nav-tabs button.active {
+  color: #00558c;
+  border-bottom: 2px solid #00558c;
+  font-weight: 600;
+}
